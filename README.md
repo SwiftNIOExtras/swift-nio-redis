@@ -81,7 +81,9 @@ bootstrap.channelInitializer { channel in
 
 ## Using the Redis client module
 
-The `Redis` module is modeled after the Node.js
+The
+[Redis](Sources/Redis/README.md)
+client module is modeled after the Node.js
 [node_redis](https://github.com/NodeRedis/node_redis)
 module,
 but it also supports NIO like Promise/Future based methods in addition
