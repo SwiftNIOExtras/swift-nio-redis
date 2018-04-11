@@ -62,7 +62,7 @@ let package = Package(
 
 ## Using the SwiftNIO Redis protocol handler
 
-The RESP protocol handler just implemented as a regular
+The RESP protocol is implemented as a regular
 `ChannelHandler`, similar to `NIOHTTP1`.
 It takes incoming `ByteBuffer` data, parses that, and emits `RESPValue`
 items.
@@ -116,16 +116,16 @@ Using NIO Promises:
 
 ```swift
 client
-  .set ("counter", 0, expire: 2)
-  .then {
-    client.incr("counter", by: 10)
-  }
-  .then {
-    client.get("counter")
-  }
-  .map {
-    print("counter is:", $0)
-  }
+    .set ("counter", 0, expire: 2)
+    .then {
+        client.incr("counter", by: 10)
+    }
+    .then {
+        client.get("counter")
+    }
+    .map {
+        print("counter is:", $0)
+    }
 ```
 
 
