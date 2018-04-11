@@ -76,10 +76,12 @@ To add the RESP handler to a NIO Channel pipeline, the `configureRedisPipeline`
 method is called, e.g.:
 
 ```swift
+import NIORedis
+
 bootstrap.channelInitializer { channel in
-  channel.pipeline
-    .configureRedisPipeline()
-    .then { ... }
+    channel.pipeline
+        .configureRedisPipeline()
+        .then { ... }
 }
 ```
 
