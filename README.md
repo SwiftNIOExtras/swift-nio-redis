@@ -26,6 +26,12 @@ or it can be used as a relay to implement a chat server using its builtin
 [PubSub](https://redis.io/topics/pubsub)
 features.
 
+This Swift package includes the RESP protocol implementation and a simple
+Redis client.
+We also provide an actual [Redis Server](https://github.com/NozeIO/redi-s)
+written in Swift, using SwiftNIO and SwiftNIO Redis.
+
+
 ## Performance
 
 This implementation is focused on performance.
@@ -62,7 +68,7 @@ let package = Package(
 
 ## Using the SwiftNIO Redis protocol handler
 
-The RESP protocol handler just implemented as a regular
+The RESP protocol is implemented as a regular
 `ChannelHandler`, similar to `NIOHTTP1`.
 It takes incoming `ByteBuffer` data, parses that, and emits `RESPValue`
 items.
@@ -76,10 +82,12 @@ To add the RESP handler to a NIO Channel pipeline, the `configureRedisPipeline`
 method is called, e.g.:
 
 ```swift
+import NIORedis
+
 bootstrap.channelInitializer { channel in
-  channel.pipeline
-    .configureRedisPipeline()
-    .then { ... }
+    channel.pipeline
+        .configureRedisPipeline()
+        .then { ... }
 }
 ```
 
@@ -116,16 +124,16 @@ Using NIO Promises:
 
 ```swift
 client
-  .set ("counter", 0, expire: 2)
-  .then {
-    client.incr("counter", by: 10)
-  }
-  .then {
-    client.get("counter")
-  }
-  .map {
-    print("counter is:", $0)
-  }
+    .set ("counter", 0, expire: 2)
+    .then {
+        client.incr("counter", by: 10)
+    }
+    .then {
+        client.get("counter")
+    }
+    .map {
+        print("counter is:", $0)
+    }
 ```
 
 
