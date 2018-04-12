@@ -26,6 +26,12 @@ or it can be used as a relay to implement a chat server using its builtin
 [PubSub](https://redis.io/topics/pubsub)
 features.
 
+This Swift package includes the RESP protocol implementation and a simple
+Redis client.
+We also provide an actual [Redis Server](https://github.com/NozeIO/redi-s)
+written in Swift, using SwiftNIO and SwiftNIO Redis.
+
+
 ## Performance
 
 This implementation is focused on performance.
