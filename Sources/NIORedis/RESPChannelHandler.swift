@@ -121,7 +121,7 @@ open class RedisChannelHandler : ChannelInboundHandler,
         let count = array.count
         out = ctx.channel.allocator.buffer(capacity: 1 + 4 + 3 + count * 32)
         out.write(integer: UInt8(42)) // *
-        out.write(string: String(array.count, radix: 10))
+        out.write(integerAsString: array.count)
         out.write(bytes: eol)
         for item in array {
           encode(ctx: ctx, data: item, level: 1, out: &out)
@@ -229,7 +229,7 @@ open class RedisChannelHandler : ChannelInboundHandler,
       case .array(let array): // *
         if let array = array {
           out.write(integer: UInt8(42)) // *
-          out.write(string: String(array.count, radix: 10))
+          out.write(integerAsString: array.count)
           out.write(bytes: eol)
           for item in array {
             encode(ctx: ctx, data: item, level: level + 1, out: &out)
