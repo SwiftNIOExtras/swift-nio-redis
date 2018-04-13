@@ -33,10 +33,10 @@ open class RedisChannelHandler : ChannelInboundHandler,
   
   // MARK: - Channel Open/Close
   
-  public func channelActive(ctx: ChannelHandlerContext) {
+  open func channelActive(ctx: ChannelHandlerContext) {
     ctx.fireChannelActive()
   }
-  public func channelInactive(ctx: ChannelHandlerContext) {
+  open func channelInactive(ctx: ChannelHandlerContext) {
     #if false // this doesn't gain us anything?
       switch parser.state {
         case .protocolError, .start: break // all good
@@ -68,7 +68,7 @@ open class RedisChannelHandler : ChannelInboundHandler,
     ctx.fireChannelRead(self.wrapInboundOut(value))
   }
   
-  public func errorCaught(ctx: ChannelHandlerContext, error: Error) {
+  open func errorCaught(ctx: ChannelHandlerContext, error: Error) {
     ctx.fireErrorCaught(InboundErr.TransportError(error))
   }
   
