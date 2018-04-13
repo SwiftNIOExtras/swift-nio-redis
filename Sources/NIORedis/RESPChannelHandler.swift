@@ -31,6 +31,8 @@ open class RedisChannelHandler : ChannelInboundHandler,
   
   public final var parser = RESPParser()
   
+  public init() {}
+  
   // MARK: - Channel Open/Close
   
   open func channelActive(ctx: ChannelHandlerContext) {
