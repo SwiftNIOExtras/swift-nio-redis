@@ -14,20 +14,11 @@
 
 import NIO
 
-public enum RedisInboundError : Error {
-  case UnexpectedStartByte(char: UInt8, buffer: ByteBuffer)
-  case UnexpectedEndByte  (char: UInt8, buffer: ByteBuffer)
-  case TransportError(Swift.Error)
-  case ProtocolError
-  case UnexpectedNegativeCount
-  case InternalInconsistency
-}
-
 final class RedisChannelHandler : ChannelInboundHandler,
                                   ChannelOutboundHandler
 {
   
-  typealias InboundErr  = RedisInboundError
+  typealias InboundErr  = RESPParserError
   
   typealias InboundIn   = ByteBuffer
   typealias InboundOut  = RESPValue
@@ -38,6 +29,7 @@ final class RedisChannelHandler : ChannelInboundHandler,
   let nilStringBuffer = ConstantBuffers.nilStringBuffer
   let nilArrayBuffer  = ConstantBuffers.nilArrayBuffer
   
+  private final var parser = RESPParser()
   
   // MARK: - Channel Open/Close
   
@@ -59,258 +51,17 @@ final class RedisChannelHandler : ChannelInboundHandler,
   
   // MARK: - Reading
 
-  @inline(__always)
-  private func decoded(value: RESPValue, in ctx: ChannelHandlerContext) {
-    if let arrayContext = arrayContext {
-      _ = arrayContext.append(value: value)
-      
-      if arrayContext.isDone {
-        let v = RESPValue.array(arrayContext.values)
-        
-        if let parent = arrayContext.parent {
-          self.arrayContext = parent
-        }
-        else {
-          self.arrayContext = nil
-          if cachedParseContext == nil {
-            cachedParseContext = arrayContext
-            arrayContext.values = ContiguousArray()
-            arrayContext.values.reserveCapacity(16)
-          }
-        }
-        decoded(value: v, in: ctx)
-      }
-    }
-    else {
-      ctx.fireChannelRead(self.wrapInboundOut(value))
-    }
-  }
-
   public func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
     do {
       let buffer = self.unwrapInboundIn(data)
-      
-      try buffer.withUnsafeReadableBytes { bp in
-        let count = bp.count
-        var i     = 0
-        
-        @inline(__always)
-        func doSkipNL() {
-          if i >= count {
-            overflowSkipNL = true
-          }
-          else {
-            if bp[i] == 10 /* LF */ { i += 1 }
-            overflowSkipNL = false
-          }
-        }
-        
-        if overflowSkipNL { doSkipNL() }
-        
-        while i < count {
-          let c = bp[i]; i += 1
-          
-          switch state {
-            
-            case .protocolError:
-              throw InboundErr.ProtocolError
-            
-            case .start:
-              switch c {
-                case 43 /* + */: state = .simpleString
-                case 45 /* - */: state = .error
-                case 58 /* : */: state = .integer
-                case 36 /* $ */: state = .bulkStringLen
-                case 42 /* * */: state = .arrayCount
-                default:         state = .telnet
-              }
-              countValue = 0
-              if state == .telnet || state == .simpleString || state == .error {
-                overflowBuffer = ctx.channel.allocator.buffer(capacity: 80)
-                overflowBuffer?.write(integer: c)
-              }
-              else {
-                overflowBuffer = nil
-              }
-            
-            case .telnet:
-              assert(overflowBuffer != nil, "missing overflow buffer")
-              if c == 13 || c == 10 {
-                if c == 13 { doSkipNL() }
-                let count = overflowBuffer?.readableBytes ?? 0
-                if count > 0 {
-                  // just a quick hack for telnet mode
-                  guard let s = overflowBuffer?.readString(length: count) else {
-                    throw InboundErr.ProtocolError
-                  }
-                  let vals = s.components(separatedBy: " ")
-                              .lazy.map { RESPValue(bulkString: $0) }
-                  decoded(value: .array(ContiguousArray(vals)), in: ctx)
-                }
-              }
-              else {
-                overflowBuffer?.write(integer: c)
-              }
-            
-            case .arrayCount, .bulkStringLen, .integer:
-              let c0 : UInt8 = 48, c9 : UInt8 = 57, cMinus : UInt8 = 45
-              if c >= c0 && c <= c9 {
-                let digit = c - c0
-                countValue = (countValue * 10) + Int(digit)
-              }
-              else if !hadMinus && c == cMinus && countValue == 0 {
-                hadMinus = true
-              }
-              else if c == 13 || c == 10 {
-                let doNegate = hadMinus
-                hadMinus = false
-                if c == 13 { doSkipNL() }
-
-                switch state {
-                  
-                  case .arrayCount:
-                    if doNegate {
-                      guard countValue == 1 else {
-                        self.state = .protocolError
-                        throw InboundErr.UnexpectedNegativeCount
-                      }
-                      decoded(value: .array(nil), in: ctx)
-                    }
-                    else {
-                      if countValue > 0 {
-                        arrayContext =
-                          makeArrayParseContext(arrayContext, countValue)
-                      }
-                      else {
-                        // push an empty array
-                        decoded(value: .array([]), in: ctx)
-                      }
-                    }
-                    state = .start
-                  
-                  case .bulkStringLen:
-                    if doNegate {
-                      state = .start
-                      decoded(value: .bulkString(nil), in: ctx)
-                    }
-                    else {
-                      if (count - i) >= (countValue + 2) { // include CRLF
-                        let value = buffer.getSlice(at: buffer.readerIndex + i,
-                                                    length: countValue)!
-                        i += countValue
-                        decoded(value: .bulkString(value), in: ctx)
-                        
-                        let ec = bp[i]
-                        guard ec == 13 || ec == 10 else {
-                          self.state = .protocolError
-                          throw InboundErr.UnexpectedStartByte(char: bp[i],
-                                                               buffer: buffer)
-                        }
-                        i += 1
-                        if ec == 13 { doSkipNL() }
-                        
-                        state = .start
-                      }
-                      else {
-                        state = .bulkStringValue
-                        overflowBuffer =
-                          ctx.channel.allocator.buffer(capacity: countValue + 1)
-                      }
-                    }
-                  
-                  case .integer:
-                    let value = doNegate ? -countValue : countValue
-                    countValue = 0 // reset
-                    
-                    decoded(value: .integer(value), in: ctx)
-                    state = .start
-                  
-                  default:
-                    assertionFailure("unexpected enum case \(state)")
-                    state = .protocolError
-                    throw InboundErr.InternalInconsistency
-                }
-              }
-              else {
-                self.state = .protocolError
-                throw InboundErr.UnexpectedStartByte(char: c, buffer: buffer)
-              }
-            
-            case .bulkStringValue:
-              let pending = countValue - (overflowBuffer?.readableBytes ?? 0)
-              
-              if pending > 0 {
-                overflowBuffer?.write(integer: c)
-                let stillPending = pending - 1
-                let avail = min(stillPending, (count - i))
-                if avail > 0 {
-                  overflowBuffer?.write(bytes: bp[i..<(i + avail)])
-                  i += avail
-                }
-              }
-              else if pending == 0 && (c == 13 || c == 10) {
-                if c == 13 { doSkipNL() }
-                
-                let value = overflowBuffer
-                overflowBuffer = nil
-                
-                decoded(value: .bulkString(value), in: ctx)
-                state = .start
-              }
-              else {
-                self.state = .protocolError
-                throw InboundErr.UnexpectedEndByte(char: c, buffer: buffer)
-              }
-            
-            case .simpleString, .error:
-              assert(overflowBuffer != nil, "missing overflow buffer")
-              if c == 13 || c == 10 {
-                if c == 13 { doSkipNL() }
-                
-                if state == .simpleString {
-                  if let v = overflowBuffer {
-                    decoded(value: .simpleString(v), in: ctx)
-                  }
-                }
-                else {
-                  // TODO: make nice :-)
-                  let avail = overflowBuffer?.readableBytes ?? 0
-                  let value = overflowBuffer?.readBytes(length: avail) ?? []
-                  let pair = value.split(separator: 32, maxSplits: 1)
-                  let code = pair.count > 0 ? String.decode(utf8: pair[0]) ?? "" :""
-                  let msg  = pair.count > 1 ? String.decode(utf8: pair[1]) ?? "" :""
-                  let error = RESPError(code: code, message: msg)
-                  decoded(value: .error(error), in: ctx)
-                }
-                overflowBuffer = nil
-                
-                state = .start
-              }
-              else {
-                overflowBuffer?.write(integer: c)
-              }
-          }
-        }
+      try parser.feed(buffer) { respValue in
+        ctx.fireChannelRead(self.wrapInboundOut(respValue))
       }
     }
     catch {
       ctx.fireErrorCaught(error)
       ctx.close(promise: nil)
       return
-    }
-    
-
-    // finish up.
-    
-    if let arrayContext = arrayContext {
-      if arrayContext.isDone {
-        let values = arrayContext.values
-        self.arrayContext = nil
-        ctx.fireChannelRead(self.wrapInboundOut(.array(values)))
-      }
-      else {
-        // we leave the context around
-      }
     }
   }
 
