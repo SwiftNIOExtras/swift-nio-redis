@@ -30,33 +30,6 @@ public struct RESPParser {
   
   private let allocator = ByteBufferAllocator()
 
-  @inline(__always)
-  private mutating func decoded(value: RESPValue, yield: Yield) {
-    if let arrayContext = arrayContext {
-      _ = arrayContext.append(value: value)
-      
-      if arrayContext.isDone {
-        let v = RESPValue.array(arrayContext.values)
-        
-        if let parent = arrayContext.parent {
-          self.arrayContext = parent
-        }
-        else {
-          self.arrayContext = nil
-          if cachedParseContext == nil {
-            cachedParseContext = arrayContext
-            arrayContext.values = ContiguousArray()
-            arrayContext.values.reserveCapacity(16)
-          }
-        }
-        decoded(value: v, yield: yield)
-      }
-    }
-    else {
-      yield(value)
-    }
-  }
-
   public mutating func feed(_ buffer: ByteBuffer, yield: Yield) throws {
     try buffer.withUnsafeReadableBytes { bp in
       let count = bp.count
@@ -146,11 +119,9 @@ public struct RESPParser {
                   }
                   else {
                     if countValue > 0 {
-                      arrayContext =
-                        makeArrayParseContext(arrayContext, countValue)
+                      arrayContexts.append(ArrayParseContext(countValue))
                     }
                     else {
-                      // push an empty array
                       decoded(value: .array([]), yield: yield)
                     }
                   }
@@ -260,24 +231,30 @@ public struct RESPParser {
       }
     }
 
-    // finish up.
-    // TBD: I think this is not necessary anymore
-    
-    if let arrayContext = arrayContext {
-      if arrayContext.isDone {
-        let values = arrayContext.values
-        self.arrayContext = nil
-        yield(.array(values))
-      }
-      else {
-        // we leave the context around
-      }
-    }
+    assert(!(arrayContexts.last?.isDone ?? false),
+           "array context on stack which is done? \(arrayContexts)")
   }
   
   
   // MARK: - Parsing
 
+  @inline(__always)
+  private mutating func decoded(value: RESPValue, yield: Yield) {
+    if arrayContexts.isEmpty {
+      return yield(value)
+    }
+    
+    let idx    = arrayContexts.endIndex.advanced(by: -1)
+    let isDone = arrayContexts[idx].append(value: value)
+    
+    if isDone {
+      let v = RESPValue.array(arrayContexts[idx].values)
+      
+      _ = arrayContexts.popLast()
+      decoded(value: v, yield: yield)
+    }
+  }
+  
   private enum ParserState {
     case protocolError
     case start
@@ -290,53 +267,35 @@ public struct RESPParser {
     case telnet
   }
   
-  @inline(__always)
-  private mutating func makeArrayParseContext(_ parent: ArrayParseContext? = nil,
-                                              _ count: Int) -> ArrayParseContext
-  {
-    if parent == nil && cachedParseContext != nil {
-      let ctx = cachedParseContext!
-      cachedParseContext = nil
-      ctx.count = count
-      ctx.values.reserveCapacity(count)
-      return ctx
-    }
-    else {
-      return ArrayParseContext(parent, count)
-    }
-  }
-  private var cachedParseContext : ArrayParseContext? = nil
+  private var arrayContexts = ContiguousArray<ArrayParseContext>()
   
-  final private class ArrayParseContext {
+  private struct ArrayParseContext {
     
-    let parent : ArrayParseContext?
-    var values = ContiguousArray<RESPValue>()
-    var count  : Int
+    var values        = ContiguousArray<RESPValue>()
+    var expectedCount : Int
     
-    init(_ parent: ArrayParseContext?, _ count: Int) {
-      self.parent = parent
-      self.count  = count
+    init(_ expectedCount: Int) {
+      self.expectedCount = expectedCount
+      values.reserveCapacity(expectedCount + 1)
     }
     
-    var isDone   : Bool { return count <= values.count }
-    var isNested : Bool { return parent != nil }
+    var isDone : Bool {
+      @inline(__always) get { return expectedCount <= values.count }
+    }
     
     @inline(__always)
-    func append(value v: RESPValue) -> Bool {
-      assert(!isNested || !isDone,
-             "attempt to add to a context which is not TL or done")
+    mutating func append(value v: RESPValue) -> Bool {
+      assert(!isDone, "attempt to add to a context which is not TL or done")
       values.append(v)
       return isDone
     }
   }
   
   private var state          = ParserState.start
-  private var overflowSkipNL = false
   private var hadMinus       = false
   
   private var countValue     = 0
+  private var overflowSkipNL = false
   private var overflowBuffer : ByteBuffer?
-  
-  private var arrayContext   : ArrayParseContext?
 
 }
