@@ -119,7 +119,7 @@ public struct RESPParser {
                   }
                   else {
                     if countValue > 0 {
-                      arrayContexts.append(ArrayParseContext(countValue))
+                      pushArrayContext(expectedCount: countValue)
                     }
                     else {
                       decoded(value: .array([]), yield: yield)
@@ -231,29 +231,51 @@ public struct RESPParser {
       }
     }
 
-    assert(!(arrayContexts.last?.isDone ?? false),
-           "array context on stack which is done? \(arrayContexts)")
+    assert(ctxIndex < 0 || !arrayContextBuffer[ctxIndex].isDone,
+           "array context on stack which is done? \(arrayContextBuffer)")
   }
   
   
   // MARK: - Parsing
 
   @inline(__always)
+  private mutating func pushArrayContext(expectedCount: Int) {
+    if ctxIndex == ctxCapacity {
+      for _ in 0..<4 {
+        arrayContextBuffer.append(ArrayParseContext(expectedCount: -44))
+      }
+      ctxCapacity = arrayContextBuffer.count
+    }
+    assert(ctxIndex < ctxCapacity, "index overflow")
+    ctxIndex += 1
+    arrayContextBuffer[ctxIndex].expectedCount = expectedCount
+    arrayContextBuffer[ctxIndex].values.reserveCapacity(expectedCount)
+  }
+
+  @inline(__always)
   private mutating func decoded(value: RESPValue, yield: Yield) {
-    if arrayContexts.isEmpty {
+    if ctxIndex < 0 {
       return yield(value)
     }
     
-    let idx    = arrayContexts.endIndex.advanced(by: -1)
-    let isDone = arrayContexts[idx].append(value: value)
-    
+    let idx    = ctxIndex
+    let isDone = arrayContextBuffer[idx].append(value: value)
     if isDone {
-      let v = RESPValue.array(arrayContexts[idx].values)
+      let value = RESPValue.array(arrayContextBuffer[idx].values)
+      arrayContextBuffer[idx].values = emptyValueArray
+      arrayContextBuffer[idx].expectedCount = -1337
       
-      _ = arrayContexts.popLast()
-      decoded(value: v, yield: yield)
+      ctxIndex -= 1
+      if ctxIndex < 0 {
+        yield(value)
+      }
+      else {
+        decoded(value: value, yield: yield)
+      }
     }
   }
+  
+  let emptyValueArray = ContiguousArray<RESPValue>()
   
   private enum ParserState {
     case protocolError
@@ -267,14 +289,26 @@ public struct RESPParser {
     case telnet
   }
   
-  private var arrayContexts = ContiguousArray<ArrayParseContext>()
+  private var ctxIndex    : Int
+  private var ctxCapacity : Int
+  private var arrayContextBuffer : ContiguousArray<ArrayParseContext>
+
+  init() {
+    ctxIndex    = -1
+    ctxCapacity = 2
+    arrayContextBuffer = ContiguousArray<ArrayParseContext>()
+    arrayContextBuffer.reserveCapacity(8)
+    for _ in 0..<ctxCapacity {
+      arrayContextBuffer.append(ArrayParseContext(expectedCount: -42))
+    }
+  }
   
   private struct ArrayParseContext {
     
     var values        = ContiguousArray<RESPValue>()
     var expectedCount : Int
     
-    init(_ expectedCount: Int) {
+    init(expectedCount: Int) {
       self.expectedCount = expectedCount
       values.reserveCapacity(expectedCount + 1)
     }
