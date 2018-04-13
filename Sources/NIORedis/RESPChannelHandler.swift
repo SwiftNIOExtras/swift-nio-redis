@@ -318,7 +318,7 @@ extension ByteBuffer {
         cursor.pointee = UInt8(c0 - (negativeAbsoluteValue % 10))
         negativeAbsoluteValue /= 10;
       }
-        while negativeAbsoluteValue != 0
+      while negativeAbsoluteValue != 0
       
       if integer < 0 {
         cursor -= 1
