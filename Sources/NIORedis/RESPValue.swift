@@ -15,16 +15,6 @@
 import NIO
 import Foundation
 
-public struct RESPError : Error {
-  let code    : String
-  let message : String
-  
-  public init(code: String = "ERR", message: String = "Generic Error") {
-    self.code    = code
-    self.message = message
-  }
-}
-
 public enum RESPValue {
   case simpleString(ByteBuffer)
   case bulkString  (ByteBuffer?)
@@ -33,6 +23,25 @@ public enum RESPValue {
   case error       (RESPError)
 }
 
+public struct RESPError : Error {
+  
+  public init(code: String = "ERR", message: String = "Generic Error") {
+    _storage = _Storage(code: code, message: message)
+  }
+  
+  public var code    : String { return _storage.code    }
+  public var message : String { return _storage.message }
+  
+  private final class _Storage {
+    let code    : String
+    let message : String
+    public init(code: String, message: String) {
+      self.code    = code
+      self.message = message
+    }
+  }
+  private let _storage : _Storage
+}
 
 // MARK: - Initializers
 
