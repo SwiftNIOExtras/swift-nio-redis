@@ -121,7 +121,7 @@ open class RedisChannelHandler : ChannelInboundHandler,
         let count = array.count
         out = ctx.channel.allocator.buffer(capacity: 1 + 4 + 3 + count * 32)
         out.write(integer: UInt8(42)) // *
-        out.write(string: String(array.count, radix: 10))
+        out.write(integerAsString: array.count)
         out.write(bytes: eol)
         for item in array {
           encode(ctx: ctx, data: item, level: 1, out: &out)
@@ -229,7 +229,7 @@ open class RedisChannelHandler : ChannelInboundHandler,
       case .array(let array): // *
         if let array = array {
           out.write(integer: UInt8(42)) // *
-          out.write(string: String(array.count, radix: 10))
+          out.write(integerAsString: array.count)
           out.write(bytes: eol)
           for item in array {
             encode(ctx: ctx, data: item, level: level + 1, out: &out)
@@ -264,11 +264,29 @@ fileprivate enum ConstantBuffers {
   }()
 }
 
+fileprivate extension BinaryInteger {
+  
+  var numberOfDecimalDigits : Int {
+    @inline(__always) get {
+      var value = self
+      var count = 0
+      
+      repeat {
+        value /= 10
+        count += 1
+      }
+      while value != 0
+      
+      return count
+    }
+  }
+}
+
 extension ByteBuffer {
   
   @discardableResult
-  public mutating func write<T: FixedWidthInteger>(integerAsString integer: T,
-                                                   as: T.Type = T.self) -> Int
+  public mutating func write<T: SignedInteger>(integerAsString integer: T,
+                                               as: T.Type = T.self) -> Int
   {
     let bytesWritten = set(integerAsString: integer, at: self.writerIndex)
     moveWriterIndex(forwardBy: bytesWritten)
@@ -276,19 +294,39 @@ extension ByteBuffer {
   }
 
   @discardableResult
-  public mutating func set<T: FixedWidthInteger>(integerAsString integer: T,
-                                                 at index: Int,
-                                                 as: T.Type = T.self) -> Int
+  public mutating func set<T: SignedInteger>(integerAsString integer: T,
+                                             at index: Int,
+                                             as: T.Type = T.self) -> Int
   {
-    var value = integer
+    let charCount = integer.numberOfDecimalDigits + (integer < 0 ? 1 : 0)
+    let avail     = capacity - index
     
-    #if true // slow, fixme
-      let len = String(value, radix: 10)
-      return set(string: len, at: index)! // TBD: why is this returning an Opt?
-    #else
-      return Swift.withUnsafeBytes(of: &value) { ptr in
-        // TODO: do the itoa thing to make it fast
+    if avail < charCount {
+      changeCapacity(to: capacity + (charCount - avail))
+    }
+
+    self.withVeryUnsafeBytes { rbpp in
+      let mrbpp  = UnsafeMutableRawBufferPointer(mutating: rbpp)
+      let base   = mrbpp.baseAddress!.assumingMemoryBound(to: UInt8.self)
+                        .advanced(by: index)
+      var cursor = base.advanced(by: charCount)
+      
+      let c0 : T = 48
+      var negativeAbsoluteValue = integer < 0 ? integer : -integer
+      repeat {
+        cursor -= 1
+        cursor.pointee = UInt8(c0 - (negativeAbsoluteValue % 10))
+        negativeAbsoluteValue /= 10;
       }
-    #endif
+        while negativeAbsoluteValue != 0
+      
+      if integer < 0 {
+        cursor -= 1
+        cursor.pointee = 45 // -
+      }
+
+    }
+    
+    return charCount
   }
 }
