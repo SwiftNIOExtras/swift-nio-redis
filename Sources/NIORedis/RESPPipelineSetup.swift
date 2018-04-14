@@ -21,7 +21,7 @@ public extension ChannelPipeline {
                                      name  : String = "de.zeezide.nio.RESP")
               -> EventLoopFuture<Void>
   {
-    return self.add(name: name, handler: RedisChannelHandler(), first: first)
+    return self.add(name: name, handler: RESPChannelHandler(), first: first)
   }
   
 }

@@ -14,9 +14,7 @@
 
 import NIO
 
-open class RedisChannelHandler : ChannelInboundHandler,
-                                 ChannelOutboundHandler
-{
+open class RESPChannelHandler : ChannelDuplexHandler {
   
   public typealias InboundErr  = RESPParserError
   
