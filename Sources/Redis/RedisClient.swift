@@ -416,7 +416,7 @@ open class RedisClient : RedisCommandTarget {
     
     state = .connecting
     retryInfo.attempt += 1
-    return bootstrap.connect(host: "localhost", port: DefaultRedisPort)
+    return bootstrap.connect(host: host, port: port)
       .map { channel in
         self.retryInfo.registerSuccessfulConnect()
         
