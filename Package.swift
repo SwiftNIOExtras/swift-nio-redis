@@ -10,7 +10,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", 
-                 from: "1.3.1"),
+                 from: "1.5.0"),
     ],
     targets: [
         .target(name: "NIORedis", dependencies: [ "NIO", "NIOFoundationCompat" ]),
