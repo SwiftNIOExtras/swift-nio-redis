@@ -14,6 +14,9 @@
 
 import NIO
 
+fileprivate let onDemandSharedEventLoopGroup =
+                  MultiThreadedEventLoopGroup(numThreads: 1)
+
 /// Configuration options for the socket connects
 open class ConnectOptions : CustomStringConvertible {
   
@@ -28,7 +31,7 @@ open class ConnectOptions : CustomStringConvertible {
     self.port     = port
     self.eventLoopGroup = eventLoopGroup
                        ?? MultiThreadedEventLoopGroup.currentEventLoop
-                       ?? MultiThreadedEventLoopGroup(numThreads: 1)
+                       ?? onDemandSharedEventLoopGroup
   }
   
   public var description: String {
