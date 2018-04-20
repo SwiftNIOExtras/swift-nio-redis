@@ -27,6 +27,7 @@ open class ConnectOptions : CustomStringConvertible {
     self.hostname = hostname
     self.port     = port
     self.eventLoopGroup = eventLoopGroup
+                       ?? MultiThreadedEventLoopGroup.currentEventLoop
                        ?? MultiThreadedEventLoopGroup(numThreads: 1)
   }
   
