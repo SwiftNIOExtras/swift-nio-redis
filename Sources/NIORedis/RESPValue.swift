@@ -23,7 +23,7 @@ public enum RESPValue {
   case error       (RESPError)
 }
 
-public struct RESPError : Error {
+public struct RESPError : Error, CustomStringConvertible {
   
   public init(code: String = "ERR", message: String = "Generic Error") {
     _storage = _Storage(code: code, message: message)
@@ -41,6 +41,10 @@ public struct RESPError : Error {
     }
   }
   private let _storage : _Storage
+  
+  public var description: String {
+    return "<RESPError: \(code) '\(message)'>"
+  }
 }
 
 // MARK: - Initializers
