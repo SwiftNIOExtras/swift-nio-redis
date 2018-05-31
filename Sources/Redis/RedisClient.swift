@@ -18,10 +18,10 @@ import NIORedis
 public let DefaultRedisPort = 6379
 
 /// Create a Redis client object
-public func createClient(port     : Int    = DefaultRedisPort,
-                         host     : String = "127.0.0.1",
+public func createClient(port     : Int     = DefaultRedisPort,
+                         host     : String  = "127.0.0.1",
                          password : String? = nil,
-                         db       : Int?   = nil,
+                         db       : Int?    = nil,
                          eventLoopGroup : EventLoopGroup? = nil)
   -> RedisClient
 {
