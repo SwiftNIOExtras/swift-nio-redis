@@ -7,6 +7,6 @@ final class RESPValueTests: XCTestCase {
     }
 
     static var allTests = [
-        "testDescription": testDescription
+        ("testDescription", testDescription)
     ]
 }
