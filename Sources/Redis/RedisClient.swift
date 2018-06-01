@@ -22,13 +22,13 @@ public func createClient(port     : Int     = DefaultRedisPort,
                          host     : String  = "127.0.0.1",
                          password : String? = nil,
                          db       : Int?    = nil,
-                         eventLoopGroup : EventLoopGroup? = nil)
+                         eventLoop : EventLoop? = nil)
   -> RedisClient
 {
   let options = RedisClientOptions(port: port, host: host,
                                    password: password, database: db)
-  if let eventLoopGroup = eventLoopGroup {
-    options.eventLoopGroup = eventLoopGroup
+  if let eventLoop = eventLoop {
+    options.eventLoop = eventLoop
   }
   return RedisClient(options: options)
 }
@@ -157,7 +157,7 @@ open class RedisClient : RedisCommandTarget {
   public init(options: RedisClientOptions) {
     self.options = options
     
-    self.eventLoop = options.eventLoopGroup.next()
+    self.eventLoop = options.eventLoop
     
     bootstrap = ClientBootstrap(group: self.eventLoop)
     

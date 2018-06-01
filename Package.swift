@@ -14,6 +14,8 @@ let package = Package(
     ],
     targets: [
         .target(name: "NIORedis", dependencies: [ "NIO", "NIOFoundationCompat" ]),
-        .target(name: "Redis",    dependencies: [ "NIORedis"    ])
+        .target(name: "Redis",    dependencies: [ "NIORedis"    ]),
+        .testTarget(name: "NIORedisTests", dependencies: [ "NIORedis"]),
+        .testTarget(name: "RedisTests",    dependencies: [ "Redis"]),
     ]
 )

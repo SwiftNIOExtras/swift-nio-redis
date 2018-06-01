@@ -20,18 +20,18 @@ fileprivate let onDemandSharedEventLoopGroup =
 /// Configuration options for the socket connects
 open class ConnectOptions : CustomStringConvertible {
   
-  public var eventLoopGroup : EventLoopGroup
+  public var eventLoop : EventLoop
   public var hostname       : String?
   public var port           : Int
   
   public init(hostname: String? = "localhost", port: Int = 80,
-              eventLoopGroup: EventLoopGroup? = nil)
+              eventLoop: EventLoop? = nil)
   {
     self.hostname = hostname
     self.port     = port
-    self.eventLoopGroup = eventLoopGroup
+    self.eventLoop = eventLoop
                        ?? MultiThreadedEventLoopGroup.currentEventLoop
-                       ?? onDemandSharedEventLoopGroup
+                       ?? onDemandSharedEventLoopGroup.next()
   }
   
   public var description: String {
@@ -63,13 +63,13 @@ public class RedisClientOptions : ConnectOptions {
               host           : String  = "127.0.0.1",
               password       : String? = nil,
               database       : Int?    = nil,
-              eventLoopGroup : EventLoopGroup? = nil)
+              eventLoop : EventLoop? = nil)
   {
     self.password      = password
     self.database      = database
     self.retryStrategy = nil
     
-    super.init(hostname: host, port: port, eventLoopGroup: eventLoopGroup)
+    super.init(hostname: host, port: port, eventLoop: eventLoop)
   }
 
   override open func appendToDescription(_ ms: inout String) {
