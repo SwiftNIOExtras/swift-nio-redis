@@ -18,10 +18,10 @@ import NIORedis
 public let DefaultRedisPort = 6379
 
 /// Create a Redis client object
-public func createClient(port     : Int    = DefaultRedisPort,
-                         host     : String = "127.0.0.1",
+public func createClient(port     : Int     = DefaultRedisPort,
+                         host     : String  = "127.0.0.1",
                          password : String? = nil,
-                         db       : Int?   = nil,
+                         db       : Int?    = nil,
                          eventLoopGroup : EventLoopGroup? = nil)
   -> RedisClient
 {
@@ -416,7 +416,7 @@ open class RedisClient : RedisCommandTarget {
     
     state = .connecting
     retryInfo.attempt += 1
-    return bootstrap.connect(host: "localhost", port: DefaultRedisPort)
+    return bootstrap.connect(host: host, port: port)
       .map { channel in
         self.retryInfo.registerSuccessfulConnect()
         
