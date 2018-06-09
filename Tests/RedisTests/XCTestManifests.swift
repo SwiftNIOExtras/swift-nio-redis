@@ -2,8 +2,8 @@ import XCTest
 
 #if !os(macOS)
 public func allTests() -> [XCTestCaseEntry] {
-    return [
-        testCase(RedisClientTests.allTests),
-    ]
+  return [
+    testCase(RedisClientTests.allTests),
+  ]
 }
 #endif
