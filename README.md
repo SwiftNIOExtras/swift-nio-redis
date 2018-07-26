@@ -26,8 +26,9 @@ or it can be used as a relay to implement a chat server using its builtin
 [PubSub](https://redis.io/topics/pubsub)
 features.
 
-This Swift package includes the RESP protocol implementation and a simple
-Redis client.
+This Swift package includes the RESP protocol implementation.
+A simple Redis client can be found on
+[swift-nio-redis-client](https://github.com/NozeIO/swift-nio-redis-client).
 We also provide an actual [Redis Server](https://github.com/NozeIO/redi-s)
 written in Swift, using SwiftNIO and SwiftNIO Redis.
 
@@ -53,14 +54,12 @@ import PackageDescription
 let package = Package(
     name: "RedisTests",
     dependencies: [
-        .package(url: "https://github.com/NozeIO/swift-nio-redis.git", 
+        .package(url: "https://github.com/SwiftNIOExtras/swift-nio-redis.git", 
                  from: "0.8.0")
     ],
     targets: [
         .target(name: "MyProtocolTool",
-                dependencies: [ "NIORedis" ]),
-        .target(name: "MyClientTool",
-                dependencies: [ "Redis" ])
+                dependencies: [ "NIORedis" ])
     ]
 )
 ```
@@ -92,61 +91,12 @@ bootstrap.channelInitializer { channel in
 ```
 
 
-## Using the Redis client module
-
-The
-[Redis](Sources/Redis/README.md)
-client module is modeled after the Node.js
-[node_redis](https://github.com/NodeRedis/node_redis)
-module,
-but it also supports NIO like Promise/Future based methods in addition
-to the Node.js `(err,result)` style callbacks. Choose your poison.
-
-### Simple KVS use example:
-
-```swift
-import Redis
-
-let client = Redis.createClient()
-
-client.set ("counter", 0, expire: 2)
-client.incr("counter", by: 10)
-client.get ("counter") { err, value in
-    print("Reply:", value)
-}
-client.keys("*") { err, reply in
-    guard let keys = reply else { return print("got no keys!") }
-    print("all keys in store:", keys.joined(separator: ","))
-}
-```
-
-Using NIO Promises:
-
-```swift
-client
-    .set ("counter", 0, expire: 2)
-    .then {
-        client.incr("counter", by: 10)
-    }
-    .then {
-        client.get("counter")
-    }
-    .map {
-        print("counter is:", $0)
-    }
-```
-
-
 ## Status
 
 The
 [protocol implementation](Sources/NIORedis/)
 is considered complete. There are a few open ends
 in the `telnet` variant, yet the regular binary protocol is considered done.
-
-The
-[Redis client module](Sources/Redis/)
-has a few more open ends, but seems to work fine.
 
 
 ### Who
