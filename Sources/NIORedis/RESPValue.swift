@@ -53,11 +53,11 @@ fileprivate let sharedAllocator = ByteBufferAllocator()
 
 public extension RESPValue {
   
-  public init(_ v: Int) {
+  init(_ v: Int) {
     self = .integer(v)
   }
   
-  public init(bulkString s: String?) {
+  init(bulkString s: String?) {
     if let s = s {
       let utf8   = s.utf8
       var buffer = sharedAllocator.buffer(capacity: utf8.count)
@@ -68,13 +68,13 @@ public extension RESPValue {
       self = .bulkString(nil)
     }
   }
-  public init(bulkString s: Data) {
+  init(bulkString s: Data) {
     var buffer = sharedAllocator.buffer(capacity: s.count)
     buffer.write(bytes: s)
     self = .bulkString(buffer)
   }
 
-  public init(bulkString s: Int) {
+  init(bulkString s: Int) {
     let s      = String(s)
     let utf8   = s.utf8
     var buffer = sharedAllocator.buffer(capacity: utf8.count)
@@ -82,19 +82,19 @@ public extension RESPValue {
     self = .bulkString(buffer)
   }
 
-  public init(simpleString s: String) {
+  init(simpleString s: String) {
     self = .simpleString(s.utf8.asByteBuffer)
   }
 
-  public init(errorCode code: String, message: String? = nil) {
+  init(errorCode code: String, message: String? = nil) {
     self = .error(RESPError(code: code, message: message ?? "Failed: \(code)"))
   }
   
-  public init<T: Sequence>(array: T) where T.Element == RESPValue {
+  init<T: Sequence>(array: T) where T.Element == RESPValue {
     self = .array(ContiguousArray(array))
   }
 
-  public var byteBuffer : ByteBuffer? {
+  var byteBuffer : ByteBuffer? {
     @inline(__always)
     get {
       switch self {
@@ -104,7 +104,7 @@ public extension RESPValue {
     }
   }
 
-  public var stringValue : String? {
+  var stringValue : String? {
     @inline(__always)
     get {
       switch self {
@@ -119,7 +119,7 @@ public extension RESPValue {
     }
   }
   
-  public var dataValue : Data? {
+  var dataValue : Data? {
     @inline(__always)
     get {
       switch self {
@@ -131,7 +131,7 @@ public extension RESPValue {
     }
   }
   
-  public var keyValue : Data? {
+  var keyValue : Data? {
     @inline(__always)
     get { return self.dataValue }
   }
@@ -154,7 +154,7 @@ public extension RESPValue {
     }
   }
   
-  public var intValue : Int? {
+  var intValue : Int? {
     @inline(__always)
     get {
       switch self {
