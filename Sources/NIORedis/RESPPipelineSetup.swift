@@ -17,8 +17,8 @@ import class NIO.EventLoopFuture
 
 public extension ChannelPipeline {
   
-  public func configureRedisPipeline(first : Bool = false,
-                                     name  : String = "de.zeezide.nio.RESP")
+  func configureRedisPipeline(first : Bool = false,
+                              name  : String = "de.zeezide.nio.RESP")
               -> EventLoopFuture<Void>
   {
     return self.add(name: name, handler: RESPChannelHandler(), first: first)
