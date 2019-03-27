@@ -132,15 +132,27 @@ open class RESPChannelHandler : ChannelDuplexHandler {
     ctx.write(wrapOutboundOut(out), promise: promise)
   }
 
-  @inline(__always)
-  final func encode<S: ContiguousCollection>(simpleString bytes: S,
-                                             out: inout ByteBuffer)
-         where S.Element == UInt8
-  {
-    out.write(integer : UInt8(43)) // +
-    out.write(bytes   : bytes)
-    out.write(bytes   : eol)
-  }
+  #if swift(>=5)
+    @inline(__always)
+    final func encode<S: Collection>(simpleString bytes: S,
+                                     out: inout ByteBuffer)
+          where S.Element == UInt8
+    {
+      out.writeInteger(UInt8(43)) // +
+      out.writeBytes(bytes)
+      out.writeBytes(eol)
+    }
+  #else
+    @inline(__always)
+    final func encode<S: ContiguousCollection>(simpleString bytes: S,
+                                               out: inout ByteBuffer)
+          where S.Element == UInt8
+    {
+      out.writeInteger(UInt8(43)) // +
+      out.writeBytes(bytes)
+      out.writeBytes(eol)
+    }
+  #endif
   
   @inline(__always)
   final func encode(simpleString bytes: ByteBuffer, out: inout ByteBuffer) {
@@ -164,22 +176,41 @@ open class RESPChannelHandler : ChannelDuplexHandler {
     }
   }
 
-  @inline(__always)
-  final func encode<S: ContiguousCollection>(bulkString bytes: S?,
-                                             out: inout ByteBuffer)
-         where S.Element == UInt8
-  {
-    if let s = bytes {
-      out.write(integer         : UInt8(36)) // $
-      out.write(integerAsString : Int(s.count))
-      out.write(bytes           : eol)
-      out.write(bytes           : s)
-      out.write(bytes           : eol)
+  #if swift(>=5)
+    @inline(__always)
+    final func encode<S: Collection>(bulkString bytes: S?,
+                                     out: inout ByteBuffer)
+           where S.Element == UInt8
+    {
+      if let s = bytes {
+        out.writeInteger(UInt8(36)) // $
+        out.write(integerAsString : Int(s.count))
+        out.writeBytes(eol)
+        out.writeBytes(s)
+        out.writeBytes(eol)
+      }
+      else {
+        out.writeBytes(nilString)
+      }
     }
-    else {
-      out.write(bytes: nilString)
+  #else
+    @inline(__always)
+    final func encode<S: ContiguousCollection>(bulkString bytes: S?,
+                                               out: inout ByteBuffer)
+           where S.Element == UInt8
+    {
+      if let s = bytes {
+        out.writeInteger(UInt8(36)) // $
+        out.write(integerAsString : Int(s.count))
+        out.writeBytes(eol)
+        out.writeBytes(s)
+        out.writeBytes(eol)
+      }
+      else {
+        out.writeBytes(nilString)
+      }
     }
-  }
+  #endif
   
   @inline(__always)
   final func encode(integer i: Int, out: inout ByteBuffer) {
