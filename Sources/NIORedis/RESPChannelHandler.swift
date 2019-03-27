@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-nio-redis open source project
 //
-// Copyright (c) 2018 ZeeZide GmbH. and the swift-nio-redis project authors
+// Copyright (c) 2018-2019 ZeeZide GmbH. and the swift-nio-redis project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -89,27 +89,27 @@ open class RESPChannelHandler : ChannelDuplexHandler {
     switch value {
       case .simpleString(var s): // +
         out = ctx.channel.allocator.buffer(capacity: 1 + s.readableBytes + 3)
-        out.write(integer : UInt8(43)) // +
-        out.write(buffer  : &s)
-        out.write(bytes   : eol)
+        out.writeInteger(UInt8(43)) // +
+        out.writeBuffer(&s)
+        out.writeBytes(eol)
 
       case .bulkString(.some(var s)): // $
         let count = s.readableBytes
         out = ctx.channel.allocator.buffer(capacity: 1 + 4 + 2 + count + 3)
-        out.write(integer         : UInt8(36)) // $
+        out.writeInteger(UInt8(36)) // $
         out.write(integerAsString : count)
-        out.write(bytes           : eol)
-        out.write(buffer          : &s)
-        out.write(bytes           : eol)
+        out.writeBytes(eol)
+        out.writeBuffer(&s)
+        out.writeBytes(eol)
 
       case .bulkString(.none): // $
         out = nilStringBuffer
       
       case .integer(let i): // :
         out = ctx.channel.allocator.buffer(capacity: 1 + 20 + 3)
-        out.write(integer         : UInt8(58)) // :
-        out.write(integerAsString : i)
-        out.write(bytes           : eol)
+        out.writeInteger(UInt8(58)) // :
+        out.write(integerAsString: i)
+        out.writeBytes(eol)
       
       case .error(let error): // -
         out = ctx.channel.allocator.buffer(capacity: 256)
@@ -118,9 +118,9 @@ open class RESPChannelHandler : ChannelDuplexHandler {
       case .array(.some(let array)): // *
         let count = array.count
         out = ctx.channel.allocator.buffer(capacity: 1 + 4 + 3 + count * 32)
-        out.write(integer: UInt8(42)) // *
+        out.writeInteger(UInt8(42)) // *
         out.write(integerAsString: array.count)
-        out.write(bytes: eol)
+        out.writeBytes(eol)
         for item in array {
           encode(ctx: ctx, data: item, level: 1, out: &out)
         }
@@ -145,22 +145,22 @@ open class RESPChannelHandler : ChannelDuplexHandler {
   @inline(__always)
   final func encode(simpleString bytes: ByteBuffer, out: inout ByteBuffer) {
     var s = bytes
-    out.write(integer : UInt8(43)) // +
-    out.write(buffer  : &s)
-    out.write(bytes   : eol)
+    out.writeInteger(UInt8(43)) // +
+    out.writeBuffer(&s)
+    out.writeBytes(eol)
   }
 
   @inline(__always)
   final func encode(bulkString bytes: ByteBuffer?, out: inout ByteBuffer) {
     if var s = bytes {
-      out.write(integer         : UInt8(36)) // $
+      out.writeInteger(UInt8(36)) // $
       out.write(integerAsString : s.readableBytes)
-      out.write(bytes           : eol)
-      out.write(buffer          : &s)
-      out.write(bytes           : eol)
+      out.writeBytes(eol)
+      out.writeBuffer(&s)
+      out.writeBytes(eol)
     }
     else {
-      out.write(bytes: nilString)
+      out.writeBytes(nilString)
     }
   }
 
@@ -183,18 +183,18 @@ open class RESPChannelHandler : ChannelDuplexHandler {
   
   @inline(__always)
   final func encode(integer i: Int, out: inout ByteBuffer) {
-    out.write(integer         : UInt8(58)) // :
+    out.writeInteger(UInt8(58)) // :
     out.write(integerAsString : i)
-    out.write(bytes           : eol)
+    out.writeBytes(eol)
   }
   
   @inline(__always)
   final func encode(error: RESPError, out: inout ByteBuffer) {
-    out.write(integer : UInt8(45)) // -
-    out.write(string  : error.code)
-    out.write(integer : UInt8(32)) // ' '
-    out.write(string  : error.message)
-    out.write(bytes   : eol)
+    out.writeInteger(UInt8(45)) // -
+    out.writeString(error.code)
+    out.writeInteger(UInt8(32)) // ' '
+    out.writeString(error.message)
+    out.writeBytes(eol)
   }
   
   final func encode(ctx  : ChannelHandlerContext,
@@ -226,15 +226,15 @@ open class RESPChannelHandler : ChannelDuplexHandler {
 
       case .array(let array): // *
         if let array = array {
-          out.write(integer: UInt8(42)) // *
+          out.writeInteger(UInt8(42)) // *
           out.write(integerAsString: array.count)
-          out.write(bytes: eol)
+          out.writeBytes(eol)
           for item in array {
             encode(ctx: ctx, data: item, level: level + 1, out: &out)
           }
         }
         else {
-          out.write(bytes: nilArray)
+          out.writeBytes(nilArray)
         }
     }
   }
@@ -250,14 +250,48 @@ fileprivate enum ConstantBuffers {
   static let nilStringBuffer : ByteBuffer = {
     let alloc = ByteBufferAllocator()
     var bb = alloc.buffer(capacity: 6)
-    bb.write(bytes: nilString)
+    bb.writeBytes(nilString)
     return bb
   }()
   
   static let nilArrayBuffer : ByteBuffer = {
     let alloc = ByteBufferAllocator()
     var bb = alloc.buffer(capacity: 6)
-    bb.write(bytes: nilArray)
+    bb.writeBytes(nilArray)
     return bb
   }()
 }
+
+#if swift(>=5)
+  // NIO 2
+#else
+fileprivate extension ByteBuffer {
+  // NIO 2 API for NIO 1
+  
+  @inline(__always) @discardableResult
+  mutating func writeString(_ string: String) -> Int {
+    return self.write(string: string) ?? -1337 // never fails
+  }
+  
+  @inline(__always) @discardableResult
+  mutating func writeInteger<T: FixedWidthInteger>(_ integer: T) -> Int {
+    return self.write(integer: integer)
+  }
+  
+  @inline(__always) @discardableResult
+  mutating func writeBuffer(_ buffer: inout ByteBuffer) -> Int {
+    return self.write(buffer: &buffer)
+  }
+  
+  @inline(__always) @discardableResult
+  public mutating func writeBytes(_ bytes: UnsafeRawBufferPointer) -> Int {
+    return self.write(bytes: bytes)
+  }
+  @inline(__always) @discardableResult
+  public mutating func writeBytes<Bytes: Sequence>(_ bytes: Bytes) -> Int
+                         where Bytes.Element == UInt8
+  {
+    return self.write(bytes: bytes)
+  }
+}
+#endif // swift(<5)
