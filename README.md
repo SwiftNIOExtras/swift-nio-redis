@@ -1,6 +1,7 @@
 # SwiftNIO Redis
 
 ![Swift4](https://img.shields.io/badge/swift-4-blue.svg)
+![Swift5](https://img.shields.io/badge/swift-5-blue.svg)
 ![macOS](https://img.shields.io/badge/os-macOS-green.svg?style=flat)
 ![tuxOS](https://img.shields.io/badge/os-tuxOS-green.svg?style=flat)
 ![Travis](https://travis-ci.org/SwiftNIOExtras/swift-nio-redis.svg?branch=develop)
@@ -47,7 +48,7 @@ That doesn't make it nice, but efficient ;-)
 An example `Package.swift `importing the necessary modules:
 
 ```swift
-// swift-tools-version:4.0
+// swift-tools-version:5.0
 
 import PackageDescription
 
@@ -55,7 +56,7 @@ let package = Package(
     name: "RedisTests",
     dependencies: [
         .package(url: "https://github.com/SwiftNIOExtras/swift-nio-redis.git", 
-                 from: "0.8.0")
+                 from: "0.9.2")
     ],
     targets: [
         .target(name: "MyProtocolTool",
