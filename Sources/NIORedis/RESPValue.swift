@@ -286,12 +286,12 @@ fileprivate extension ByteBuffer {
   // NIO 2 API for NIO 1
   
   @inline(__always) @discardableResult
-  public mutating func writeBytes(_ bytes: UnsafeRawBufferPointer) -> Int {
+  mutating func writeBytes(_ bytes: UnsafeRawBufferPointer) -> Int {
     return self.write(bytes: bytes)
   }
   @inline(__always) @discardableResult
-  public mutating func writeBytes<Bytes: Sequence>(_ bytes: Bytes) -> Int
-                         where Bytes.Element == UInt8
+  mutating func writeBytes<Bytes: Sequence>(_ bytes: Bytes) -> Int
+                  where Bytes.Element == UInt8
   {
     return self.write(bytes: bytes)
   }
