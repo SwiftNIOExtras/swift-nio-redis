@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-nio-redis open source project
 //
-// Copyright (c) 2018 ZeeZide GmbH. and the swift-nio-redis project authors
+// Copyright (c) 2018-2019 ZeeZide GmbH. and the swift-nio-redis project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -68,7 +68,7 @@ public struct RESPParser {
             countValue = 0
             if state == .telnet || state == .simpleString || state == .error {
               overflowBuffer = allocator.buffer(capacity: 80)
-              overflowBuffer?.write(integer: c)
+              overflowBuffer?.writeInteger(c)
             }
             else {
               overflowBuffer = nil
@@ -90,7 +90,7 @@ public struct RESPParser {
               }
             }
             else {
-              overflowBuffer?.write(integer: c)
+              overflowBuffer?.writeInteger(c)
             }
           
           case .arrayCount, .bulkStringLen, .integer:
@@ -178,11 +178,11 @@ public struct RESPParser {
             let pending = countValue - (overflowBuffer?.readableBytes ?? 0)
             
             if pending > 0 {
-              overflowBuffer?.write(integer: c)
+              overflowBuffer?.writeInteger(c)
               let stillPending = pending - 1
               let avail = min(stillPending, (count - i))
               if avail > 0 {
-                overflowBuffer?.write(bytes: bp[i..<(i + avail)])
+                overflowBuffer?.writeBytes(bp[i..<(i + avail)])
                 i += avail
               }
             }
@@ -225,7 +225,7 @@ public struct RESPParser {
               state = .start
             }
             else {
-              overflowBuffer?.write(integer: c)
+              overflowBuffer?.writeInteger(c)
             }
         }
       }
@@ -333,3 +333,27 @@ public struct RESPParser {
   private var overflowBuffer : ByteBuffer?
 
 }
+
+#if swift(>=5)
+  // NIO 2
+#else
+fileprivate extension ByteBuffer {
+  // NIO 2 API for NIO 1
+  
+  @inline(__always) @discardableResult
+  mutating func writeInteger<T: FixedWidthInteger>(_ integer: T) -> Int {
+    return self.write(integer: integer)
+  }
+  
+  @inline(__always) @discardableResult
+  public mutating func writeBytes(_ bytes: UnsafeRawBufferPointer) -> Int {
+    return self.write(bytes: bytes)
+  }
+  @inline(__always) @discardableResult
+  public mutating func writeBytes<Bytes: Sequence>(_ bytes: Bytes) -> Int
+                         where Bytes.Element == UInt8
+  {
+    return self.write(bytes: bytes)
+  }
+}
+#endif // swift(<5)
