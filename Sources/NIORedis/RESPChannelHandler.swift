@@ -33,69 +33,70 @@ open class RESPChannelHandler : ChannelDuplexHandler {
   
   // MARK: - Channel Open/Close
   
-  open func channelActive(ctx: ChannelHandlerContext) {
-    ctx.fireChannelActive()
+  open func channelActive(context: ChannelHandlerContext) {
+    context.fireChannelActive()
   }
-  open func channelInactive(ctx: ChannelHandlerContext) {
+  open func channelInactive(context: ChannelHandlerContext) {
     #if false // this doesn't gain us anything?
       switch parser.state {
         case .protocolError, .start: break // all good
         default:
-          ctx.fireErrorCaught(InboundErr.ProtocolError)
+          context.fireErrorCaught(InboundErr.ProtocolError)
       }
     #endif
-    ctx.fireChannelInactive()
+    context.fireChannelInactive()
   }
 
   
   // MARK: - Reading
 
-  public func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
+  public func channelRead(context: ChannelHandlerContext, data: NIOAny) {
     do {
       let buffer = self.unwrapInboundIn(data)
       try parser.feed(buffer) { respValue in
-        self.channelRead(ctx: ctx, value: respValue)
+        self.channelRead(context: context, value: respValue)
       }
     }
     catch {
-      ctx.fireErrorCaught(error)
-      ctx.close(promise: nil)
+      context.fireErrorCaught(error)
+      context.close(promise: nil)
       return
     }
   }
   
-  open func channelRead(ctx: ChannelHandlerContext, value: RESPValue) {
-    ctx.fireChannelRead(self.wrapInboundOut(value))
+  open func channelRead(context: ChannelHandlerContext, value: RESPValue) {
+    context.fireChannelRead(self.wrapInboundOut(value))
   }
   
-  open func errorCaught(ctx: ChannelHandlerContext, error: Error) {
-    ctx.fireErrorCaught(InboundErr.TransportError(error))
+  open func errorCaught(context: ChannelHandlerContext, error: Error) {
+    context.fireErrorCaught(InboundErr.TransportError(error))
   }
   
   
   // MARK: - Writing
 
-  public func write(ctx: ChannelHandlerContext, data: NIOAny,
+  public func write(context: ChannelHandlerContext, data: NIOAny,
                     promise: EventLoopPromise<Void>?)
   {
     let data : RESPEncodable = self.unwrapOutboundIn(data)
-    write(ctx: ctx, value: data.toRESPValue(), promise: promise)
+    write(context: context, value: data.toRESPValue(), promise: promise)
   }
   
-  public final func write(ctx: ChannelHandlerContext, value: RESPValue,
+  public final func write(context: ChannelHandlerContext, value: RESPValue,
                           promise: EventLoopPromise<Void>?)
   {
     var out : ByteBuffer
     switch value {
       case .simpleString(var s): // +
-        out = ctx.channel.allocator.buffer(capacity: 1 + s.readableBytes + 3)
+        out = context.channel.allocator
+                .buffer(capacity: 1 + s.readableBytes + 3)
         out.writeInteger(UInt8(43)) // +
         out.writeBuffer(&s)
         out.writeBytes(eol)
 
       case .bulkString(.some(var s)): // $
         let count = s.readableBytes
-        out = ctx.channel.allocator.buffer(capacity: 1 + 4 + 2 + count + 3)
+        out = context.channel.allocator.buffer(capacity: 1 + 4 + 2 + count + 3)
         out.writeInteger(UInt8(36)) // $
         out.write(integerAsString : count)
         out.writeBytes(eol)
@@ -106,30 +107,30 @@ open class RESPChannelHandler : ChannelDuplexHandler {
         out = nilStringBuffer
       
       case .integer(let i): // :
-        out = ctx.channel.allocator.buffer(capacity: 1 + 20 + 3)
+        out = context.channel.allocator.buffer(capacity: 1 + 20 + 3)
         out.writeInteger(UInt8(58)) // :
         out.write(integerAsString: i)
         out.writeBytes(eol)
       
       case .error(let error): // -
-        out = ctx.channel.allocator.buffer(capacity: 256)
+        out = context.channel.allocator.buffer(capacity: 256)
         encode(error: error, out: &out)
       
       case .array(.some(let array)): // *
         let count = array.count
-        out = ctx.channel.allocator.buffer(capacity: 1 + 4 + 3 + count * 32)
+        out = context.channel.allocator.buffer(capacity: 1 + 4 + 3 + count * 32)
         out.writeInteger(UInt8(42)) // *
         out.write(integerAsString: array.count)
         out.writeBytes(eol)
         for item in array {
-          encode(ctx: ctx, data: item, level: 1, out: &out)
+          encode(context: context, data: item, level: 1, out: &out)
         }
       
       case .array(.none): // *
         out = nilArrayBuffer
     }
 
-    ctx.write(wrapOutboundOut(out), promise: promise)
+    context.write(wrapOutboundOut(out), promise: promise)
   }
 
   #if swift(>=5)
@@ -228,17 +229,17 @@ open class RESPChannelHandler : ChannelDuplexHandler {
     out.writeBytes(eol)
   }
   
-  final func encode(ctx  : ChannelHandlerContext,
-                    data : RESPValue,
-                    out  : inout ByteBuffer)
+  final func encode(context : ChannelHandlerContext,
+                    data    : RESPValue,
+                    out     : inout ByteBuffer)
   {
-    encode(ctx: ctx, data: data, level: 0, out: &out)
+    encode(context: context, data: data, level: 0, out: &out)
   }
 
-  final func encode(ctx   : ChannelHandlerContext,
-                    data  : RESPValue,
-                    level : Int,
-                    out   : inout ByteBuffer)
+  final func encode(context : ChannelHandlerContext,
+                    data    : RESPValue,
+                    level   : Int,
+                    out     : inout ByteBuffer)
   {
     // FIXME: Creating a String for an Int is expensive, there is something
     //        something better in the HTTP-API async imp.
@@ -261,7 +262,7 @@ open class RESPChannelHandler : ChannelDuplexHandler {
           out.write(integerAsString: array.count)
           out.writeBytes(eol)
           for item in array {
-            encode(ctx: ctx, data: item, level: level + 1, out: &out)
+            encode(context: context, data: item, level: level + 1, out: &out)
           }
         }
         else {
@@ -270,6 +271,35 @@ open class RESPChannelHandler : ChannelDuplexHandler {
     }
   }
 
+  
+  #if swift(>=5) // NIO 2 API - default
+  #else // NIO 1 API Shims
+    open func channelActive(ctx context: ChannelHandlerContext) {
+      channelActive(context: context)
+    }
+    open func channelInactive(ctx context: ChannelHandlerContext) {
+      channelInactive(context: context)
+    }
+    public func channelRead(ctx context: ChannelHandlerContext, data: NIOAny) {
+      channelRead(context: context, data: data)
+    }
+    open func channelRead(ctx context: ChannelHandlerContext, value: RESPValue) {
+      channelRead(context: context, value: value)
+    }
+    open func errorCaught(ctx context: ChannelHandlerContext, error: Error) {
+      errorCaught(context: context, error: error)
+    }
+    public func write(ctx context: ChannelHandlerContext, data: NIOAny,
+                      promise: EventLoopPromise<Void>?)
+    {
+      write(context: context, data: data, promise: promise)
+    }
+    public final func write(ctx context: ChannelHandlerContext, value: RESPValue,
+                            promise: EventLoopPromise<Void>?)
+    {
+      write(context: context, value: value, promise: promise)
+    }
+  #endif // NIO 1 API Shims
 }
 
 private let eol       : ContiguousArray<UInt8> = [ 13, 10 ] // \r\n
