@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-nio-redis open source project
 //
-// Copyright (c) 2018-2019 ZeeZide GmbH. and the swift-nio-redis project authors
+// Copyright (c) 2018-2020 ZeeZide GmbH. and the swift-nio-redis project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -21,12 +21,7 @@ public extension ChannelPipeline {
                               name  : String = "de.zeezide.nio.RESP")
               -> EventLoopFuture<Void>
   {
-    #if swift(>=5)
-      return self.addHandler(RESPChannelHandler(), name: name,
-                             position: first ? .first : .last)
-    #else
-      return self.add(name: name, handler: RESPChannelHandler(), first: first)
-    #endif
+    return self.addHandler(RESPChannelHandler(), name: name,
+                           position: first ? .first : .last)
   }
-  
 }

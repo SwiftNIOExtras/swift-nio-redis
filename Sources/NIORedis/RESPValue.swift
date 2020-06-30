@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-nio-redis open source project
 //
-// Copyright (c) 2018-2019 ZeeZide GmbH. and the swift-nio-redis project authors
+// Copyright (c) 2018-2020 ZeeZide GmbH. and the swift-nio-redis project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -241,7 +241,6 @@ extension RESPValue : CustomStringConvertible {
       case .error(let e):              return "<Error: \(e)>"
     }
   }
-
 }
 
 
@@ -276,24 +275,4 @@ extension String {
       }
     }
   }
-  
 }
-
-#if swift(>=5)
-  // NIO 2
-#else
-fileprivate extension ByteBuffer {
-  // NIO 2 API for NIO 1
-  
-  @inline(__always) @discardableResult
-  mutating func writeBytes(_ bytes: UnsafeRawBufferPointer) -> Int {
-    return self.write(bytes: bytes)
-  }
-  @inline(__always) @discardableResult
-  mutating func writeBytes<Bytes: Sequence>(_ bytes: Bytes) -> Int
-                  where Bytes.Element == UInt8
-  {
-    return self.write(bytes: bytes)
-  }
-}
-#endif // swift(<5)
