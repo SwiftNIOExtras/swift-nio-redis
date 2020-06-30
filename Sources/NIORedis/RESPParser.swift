@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-nio-redis open source project
 //
-// Copyright (c) 2018-2019 ZeeZide GmbH. and the swift-nio-redis project authors
+// Copyright (c) 2018-2020 ZeeZide GmbH. and the swift-nio-redis project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -18,7 +18,7 @@ import struct NIO.ByteBufferAllocator
 public enum RESPParserError : Error {
   case UnexpectedStartByte(char: UInt8, buffer: ByteBuffer)
   case UnexpectedEndByte  (char: UInt8, buffer: ByteBuffer)
-  case TransportError(Swift.Error)
+  case TransportError     (Swift.Error)
   case ProtocolError
   case UnexpectedNegativeCount
   case InternalInconsistency
@@ -333,27 +333,3 @@ public struct RESPParser {
   private var overflowBuffer : ByteBuffer?
 
 }
-
-#if swift(>=5)
-  // NIO 2
-#else
-fileprivate extension ByteBuffer {
-  // NIO 2 API for NIO 1
-  
-  @inline(__always) @discardableResult
-  mutating func writeInteger<T: FixedWidthInteger>(_ integer: T) -> Int {
-    return self.write(integer: integer)
-  }
-  
-  @inline(__always) @discardableResult
-  mutating func writeBytes(_ bytes: UnsafeRawBufferPointer) -> Int {
-    return self.write(bytes: bytes)
-  }
-  @inline(__always) @discardableResult
-  mutating func writeBytes<Bytes: Sequence>(_ bytes: Bytes) -> Int
-                  where Bytes.Element == UInt8
-  {
-    return self.write(bytes: bytes)
-  }
-}
-#endif // swift(<5)

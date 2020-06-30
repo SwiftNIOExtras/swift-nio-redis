@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-nio-redis open source project
 //
-// Copyright (c) 2018-2019 ZeeZide GmbH. and the swift-nio-redis project authors
+// Copyright (c) 2018-2020 ZeeZide GmbH. and the swift-nio-redis project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -16,18 +16,18 @@ import NIO
 
 open class RESPChannelHandler : ChannelDuplexHandler {
   
-  public typealias InboundErr  = RESPParserError
+  public  typealias InboundErr      = RESPParserError
   
-  public typealias InboundIn   = ByteBuffer
-  public typealias InboundOut  = RESPValue
+  public  typealias InboundIn       = ByteBuffer
+  public  typealias InboundOut      = RESPValue
 
-  public typealias OutboundIn  = RESPEncodable
-  public typealias OutboundOut = ByteBuffer
+  public  typealias OutboundIn      = RESPEncodable
+  public  typealias OutboundOut     = ByteBuffer
   
   private final let nilStringBuffer = ConstantBuffers.nilStringBuffer
   private final let nilArrayBuffer  = ConstantBuffers.nilArrayBuffer
   
-  public final var parser = RESPParser()
+  public  final var parser          = RESPParser()
   
   public init() {}
   
@@ -133,27 +133,15 @@ open class RESPChannelHandler : ChannelDuplexHandler {
     context.write(wrapOutboundOut(out), promise: promise)
   }
 
-  #if swift(>=5)
-    @inline(__always)
-    final func encode<S: Collection>(simpleString bytes: S,
-                                     out: inout ByteBuffer)
-          where S.Element == UInt8
-    {
-      out.writeInteger(UInt8(43)) // +
-      out.writeBytes(bytes)
-      out.writeBytes(eol)
-    }
-  #else
-    @inline(__always)
-    final func encode<S: ContiguousCollection>(simpleString bytes: S,
-                                               out: inout ByteBuffer)
-          where S.Element == UInt8
-    {
-      out.writeInteger(UInt8(43)) // +
-      out.writeBytes(bytes)
-      out.writeBytes(eol)
-    }
-  #endif
+  @inline(__always)
+  final func encode<S: Collection>(simpleString bytes: S,
+                                   out: inout ByteBuffer)
+        where S.Element == UInt8
+  {
+    out.writeInteger(UInt8(43)) // +
+    out.writeBytes(bytes)
+    out.writeBytes(eol)
+  }
   
   @inline(__always)
   final func encode(simpleString bytes: ByteBuffer, out: inout ByteBuffer) {
@@ -177,41 +165,22 @@ open class RESPChannelHandler : ChannelDuplexHandler {
     }
   }
 
-  #if swift(>=5)
-    @inline(__always)
-    final func encode<S: Collection>(bulkString bytes: S?,
-                                     out: inout ByteBuffer)
-           where S.Element == UInt8
-    {
-      if let s = bytes {
-        out.writeInteger(UInt8(36)) // $
-        out.write(integerAsString : Int(s.count))
-        out.writeBytes(eol)
-        out.writeBytes(s)
-        out.writeBytes(eol)
-      }
-      else {
-        out.writeBytes(nilString)
-      }
+  @inline(__always)
+  final func encode<S: Collection>(bulkString bytes: S?,
+                                   out: inout ByteBuffer)
+         where S.Element == UInt8
+  {
+    if let s = bytes {
+      out.writeInteger(UInt8(36)) // $
+      out.write(integerAsString : Int(s.count))
+      out.writeBytes(eol)
+      out.writeBytes(s)
+      out.writeBytes(eol)
     }
-  #else
-    @inline(__always)
-    final func encode<S: ContiguousCollection>(bulkString bytes: S?,
-                                               out: inout ByteBuffer)
-           where S.Element == UInt8
-    {
-      if let s = bytes {
-        out.writeInteger(UInt8(36)) // $
-        out.write(integerAsString : Int(s.count))
-        out.writeBytes(eol)
-        out.writeBytes(s)
-        out.writeBytes(eol)
-      }
-      else {
-        out.writeBytes(nilString)
-      }
+    else {
+      out.writeBytes(nilString)
     }
-  #endif
+  }
   
   @inline(__always)
   final func encode(integer i: Int, out: inout ByteBuffer) {
@@ -270,36 +239,6 @@ open class RESPChannelHandler : ChannelDuplexHandler {
         }
     }
   }
-
-  
-  #if swift(>=5) // NIO 2 API - default
-  #else // NIO 1 API Shims
-    open func channelActive(ctx context: ChannelHandlerContext) {
-      channelActive(context: context)
-    }
-    open func channelInactive(ctx context: ChannelHandlerContext) {
-      channelInactive(context: context)
-    }
-    public func channelRead(ctx context: ChannelHandlerContext, data: NIOAny) {
-      channelRead(context: context, data: data)
-    }
-    open func channelRead(ctx context: ChannelHandlerContext, value: RESPValue) {
-      channelRead(context: context, value: value)
-    }
-    open func errorCaught(ctx context: ChannelHandlerContext, error: Error) {
-      errorCaught(context: context, error: error)
-    }
-    public func write(ctx context: ChannelHandlerContext, data: NIOAny,
-                      promise: EventLoopPromise<Void>?)
-    {
-      write(context: context, data: data, promise: promise)
-    }
-    public final func write(ctx context: ChannelHandlerContext, value: RESPValue,
-                            promise: EventLoopPromise<Void>?)
-    {
-      write(context: context, value: value, promise: promise)
-    }
-  #endif // NIO 1 API Shims
 }
 
 private let eol       : ContiguousArray<UInt8> = [ 13, 10 ] // \r\n
@@ -310,49 +249,16 @@ fileprivate enum ConstantBuffers {
   
   static let nilStringBuffer : ByteBuffer = {
     let alloc = ByteBufferAllocator()
-    var bb = alloc.buffer(capacity: 6)
+    var bb    = alloc.buffer(capacity: 6)
     bb.writeBytes(nilString)
     return bb
   }()
   
   static let nilArrayBuffer : ByteBuffer = {
     let alloc = ByteBufferAllocator()
-    var bb = alloc.buffer(capacity: 6)
+    var bb    = alloc.buffer(capacity: 6)
     bb.writeBytes(nilArray)
     return bb
   }()
 }
 
-#if swift(>=5)
-  // NIO 2
-#else
-fileprivate extension ByteBuffer {
-  // NIO 2 API for NIO 1
-  
-  @inline(__always) @discardableResult
-  mutating func writeString(_ string: String) -> Int {
-    return self.write(string: string) ?? -1337 // never fails
-  }
-  
-  @inline(__always) @discardableResult
-  mutating func writeInteger<T: FixedWidthInteger>(_ integer: T) -> Int {
-    return self.write(integer: integer)
-  }
-  
-  @inline(__always) @discardableResult
-  mutating func writeBuffer(_ buffer: inout ByteBuffer) -> Int {
-    return self.write(buffer: &buffer)
-  }
-  
-  @inline(__always) @discardableResult
-  mutating func writeBytes(_ bytes: UnsafeRawBufferPointer) -> Int {
-    return self.write(bytes: bytes)
-  }
-  @inline(__always) @discardableResult
-  mutating func writeBytes<Bytes: Sequence>(_ bytes: Bytes) -> Int
-                  where Bytes.Element == UInt8
-  {
-    return self.write(bytes: bytes)
-  }
-}
-#endif // swift(<5)
