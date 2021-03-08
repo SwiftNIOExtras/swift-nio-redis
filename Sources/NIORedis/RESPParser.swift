@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-nio-redis open source project
 //
-// Copyright (c) 2018-2020 ZeeZide GmbH. and the swift-nio-redis project authors
+// Copyright (c) 2018-2021 ZeeZide GmbH. and the swift-nio-redis project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -35,7 +35,6 @@ public struct RESPParser {
       let count = bp.count
       var i     = 0
       
-      @inline(__always)
       func doSkipNL() {
         if i >= count {
           overflowSkipNL = true
@@ -238,7 +237,6 @@ public struct RESPParser {
   
   // MARK: - Parsing
 
-  @inline(__always)
   private mutating func pushArrayContext(expectedCount: Int) {
     if ctxIndex == ctxCapacity {
       for _ in 0..<4 {
@@ -252,7 +250,6 @@ public struct RESPParser {
     arrayContextBuffer[ctxIndex].values.reserveCapacity(expectedCount)
   }
 
-  @inline(__always)
   private mutating func decoded(value: RESPValue, yield: Yield) {
     if ctxIndex < 0 {
       return yield(value)
@@ -313,11 +310,8 @@ public struct RESPParser {
       values.reserveCapacity(expectedCount + 1)
     }
     
-    var isDone : Bool {
-      @inline(__always) get { return expectedCount <= values.count }
-    }
+    var isDone : Bool { return expectedCount <= values.count }
     
-    @inline(__always)
     mutating func append(value v: RESPValue) -> Bool {
       assert(!isDone, "attempt to add to a context which is not TL or done")
       values.append(v)
@@ -331,5 +325,4 @@ public struct RESPParser {
   private var countValue     = 0
   private var overflowSkipNL = false
   private var overflowBuffer : ByteBuffer?
-
 }

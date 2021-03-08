@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-nio-redis open source project
 //
-// Copyright (c) 2018 ZeeZide GmbH. and the swift-nio-redis project authors
+// Copyright (c) 2018-2021 ZeeZide GmbH. and the swift-nio-redis project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -18,68 +18,58 @@ import struct NIO.ByteBuffer
 public protocol RESPEncodable {
   
   func toRESPValue() -> RESPValue
-  
 }
 
 extension RESPValue : RESPEncodable {
 
-  public func toRESPValue() -> RESPValue {
-    return self
-  }
-
+  @inlinable
+  public func toRESPValue() -> RESPValue { return self }
 }
 
 extension RESPError : RESPEncodable {
-  
-  public func toRESPValue() -> RESPValue {
-    return .error(self)
-  }
 
+  @inlinable
+  public func toRESPValue() -> RESPValue { return .error(self) }
 }
 
 extension Int : RESPEncodable {
   
-  public func toRESPValue() -> RESPValue {
-    return .integer(self)
-  }
-  
+  @inlinable
+  public func toRESPValue() -> RESPValue { return .integer(self) }
 }
 
 extension Bool : RESPEncodable {
 
-  public func toRESPValue() -> RESPValue {
-    return .integer(self ? 1 : 0)
-  }
-
+  @inlinable
+  public func toRESPValue() -> RESPValue { return .integer(self ? 1 : 0) }
 }
 
 extension String : RESPEncodable {
   
+  @inlinable
   public func toRESPValue() -> RESPValue {
     return .bulkString(self.utf8.asByteBuffer)
   }
-  
 }
 
 extension Data : RESPEncodable {
   
+  @inlinable
   public func toRESPValue() -> RESPValue {
     return .bulkString(self.asByteBuffer)
   }
-  
 }
 
 extension ByteBuffer : RESPEncodable {
-  
-  public func toRESPValue() -> RESPValue {
-    return .bulkString(self)
-  }
-  
+
+  @inlinable
+  public func toRESPValue() -> RESPValue { return .bulkString(self) }
 }
 
 
 extension Array where Element: RESPEncodable {
   
+  @inlinable
   public func toRESPValue() -> RESPValue {
     let arrayOfRedisValues = self.map { $0.toRESPValue() }
     return .array(ContiguousArray(arrayOfRedisValues))
@@ -89,6 +79,7 @@ extension Array where Element: RESPEncodable {
 
 extension Array: RESPEncodable {
   
+  @inlinable
   public func toRESPValue() -> RESPValue {
     let array : [ RESPValue ] = self.map { v in
       if let rv = (v as? RESPEncodable) {
