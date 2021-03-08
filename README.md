@@ -14,7 +14,7 @@ This is a **standalone project** and has no other dependencies but
 
 Apart from the protocol implementation which can encode and decode
 [RESP](https://redis.io/topics/protocol) (REdis Serialization Protocol),
-we also provide a [Redis client module](Sources/Redis/README.md)
+we also provide a [Redis client module](https://github.com/NozeIO/swift-nio-redis-client)
 build on top.
 
 What is Redis?
