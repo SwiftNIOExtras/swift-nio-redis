@@ -49,14 +49,14 @@ public struct RESPError : Error, CustomStringConvertible {
 
 // MARK: - Initializers
 
-fileprivate let sharedAllocator = ByteBufferAllocator()
+@usableFromInline let sharedAllocator = ByteBufferAllocator()
 
 public extension RESPValue {
   
-  init(_ v: Int) {
-    self = .integer(v)
-  }
+  @inlinable
+  init(_ v: Int) { self = .integer(v) }
   
+  @inlinable
   init(bulkString s: String?) {
     if let s = s {
       let utf8   = s.utf8
@@ -68,12 +68,14 @@ public extension RESPValue {
       self = .bulkString(nil)
     }
   }
+  @inlinable
   init(bulkString s: Data) {
     var buffer = sharedAllocator.buffer(capacity: s.count)
     buffer.writeBytes(s)
     self = .bulkString(buffer)
   }
 
+  @inlinable
   init(bulkString s: Int) {
     let s      = String(s)
     let utf8   = s.utf8
@@ -82,45 +84,48 @@ public extension RESPValue {
     self = .bulkString(buffer)
   }
 
+  @inlinable
   init(simpleString s: String) {
     self = .simpleString(s.utf8.asByteBuffer)
   }
 
+  @inlinable
   init(errorCode code: String, message: String? = nil) {
     self = .error(RESPError(code: code, message: message ?? "Failed: \(code)"))
   }
   
+  @inlinable
   init<T: Sequence>(array: T) where T.Element == RESPValue {
     self = .array(ContiguousArray(array))
   }
+  
+}
 
+public extension RESPValue { // MARK: - Content Accessors
+  
+  @inlinable
   var byteBuffer : ByteBuffer? {
-    @inline(__always)
-    get {
-      switch self {
-        case .simpleString(let cs), .bulkString(.some(let cs)): return cs
-        default: return nil
-      }
+    switch self {
+      case .simpleString(let cs), .bulkString(.some(let cs)): return cs
+      default: return nil
     }
   }
 
+  @inlinable
   var stringValue : String? {
-    @inline(__always)
-    get {
-      switch self {
-        case .simpleString(let cs), .bulkString(.some(let cs)):
-          return cs.getString(at: cs.readerIndex, length: cs.readableBytes)
-        
-        case .integer(let i):
-          return String(i)
-        
-        default: return nil
-      }
+    switch self {
+      case .simpleString(let cs), .bulkString(.some(let cs)):
+        return cs.getString(at: cs.readerIndex, length: cs.readableBytes)
+      
+      case .integer(let i):
+        return String(i)
+      
+      default: return nil
     }
   }
   
+  @inlinable
   var dataValue : Data? {
-    @inline(__always)
     get {
       switch self {
       case .simpleString(let cs), .bulkString(.some(let cs)):
@@ -131,12 +136,10 @@ public extension RESPValue {
     }
   }
   
-  var keyValue : Data? {
-    @inline(__always)
-    get { return self.dataValue }
-  }
+  @inlinable
+  var keyValue : Data? { return self.dataValue }
   
-  @inline(__always)
+  @inlinable
   func withKeyValue(_ cb: ( Data? ) throws -> Void) rethrows {
     // SR-7378
     switch self {
@@ -154,28 +157,27 @@ public extension RESPValue {
     }
   }
   
+  @inlinable
   var intValue : Int? {
-    @inline(__always)
-    get {
-      switch self {
-        case .integer(let i):
-          return i
-        
-        case .simpleString(let cs), .bulkString(.some(let cs)):
-          // PERF: inline atoi instead of constructing a string!
-          guard let s = cs.getString(at: cs.readerIndex,
-                                     length: cs.readableBytes) else {
-            return nil
-          }
-          return Int(s)
-        
-        default:
+    switch self {
+      case .integer(let i):
+        return i
+      
+      case .simpleString(let cs), .bulkString(.some(let cs)):
+        // PERF: inline atoi instead of constructing a string!
+        guard let s = cs.getString(at: cs.readerIndex,
+                                   length: cs.readableBytes) else {
           return nil
-      }
+        }
+        return Int(s)
+      
+      default:
+        return nil
     }
   }
 }
 
+@inlinable
 public func ==(lhs: RESPValue, rhs: String) -> Bool {
   switch lhs {
     case .simpleString, .bulkString:
@@ -191,6 +193,8 @@ public func ==(lhs: RESPValue, rhs: String) -> Bool {
 // MARK: - Parse Literals
 
 extension RESPValue : ExpressibleByIntegerLiteral {
+  
+  @inlinable
   public init(integerLiteral value: IntegerLiteralType) {
     self = .integer(value)
   }
@@ -199,6 +203,8 @@ extension RESPValue : ExpressibleByIntegerLiteral {
 import NIOFoundationCompat
 
 extension Data {
+  
+  @usableFromInline
   var asByteBuffer : ByteBuffer {
     var bb = sharedAllocator.buffer(capacity: count)
     bb.writeBytes(self)
@@ -207,6 +213,8 @@ extension Data {
 }
 
 extension String.UTF8View {
+  
+  @usableFromInline
   var asByteBuffer : ByteBuffer {
     var bb = sharedAllocator.buffer(capacity: count)
     bb.writeBytes(self)
@@ -216,20 +224,23 @@ extension String.UTF8View {
 
 extension RESPValue : ExpressibleByStringLiteral {
   
+  @inlinable
   public init(stringLiteral value: String) {
     self = .bulkString(value.utf8.asByteBuffer)
   }
+  @inlinable
   public init(extendedGraphemeClusterLiteral value: StringLiteralType) {
     self = .bulkString(value.utf8.asByteBuffer)
   }
+  @inlinable
   public init(unicodeScalarLiteral value: StringLiteralType) {
     self = .bulkString(value.utf8.asByteBuffer)
   }
-  
 }
 
 extension RESPValue : CustomStringConvertible {
   
+  @inlinable
   public var description : String {
     switch self {
       case .simpleString(let cs):      return stringValue ?? "\(cs)"
@@ -249,12 +260,14 @@ extension RESPValue : CustomStringConvertible {
 extension String {
   // FIXME: we can probably do this in the buffer
   
+  @inlinable
   static func decode<I: Collection>(utf8 ba: I) -> String?
                      where I.Iterator.Element == UInt8
   {
     return decode(units: ba, decoder: UTF8())
   }
   
+  @inlinable
   static func decode<Codec: UnicodeCodec, I: Collection>
                 (units b: I, decoder d: Codec) -> String?
                      where I.Iterator.Element == Codec.CodeUnit

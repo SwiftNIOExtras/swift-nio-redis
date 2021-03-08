@@ -1,6 +1,5 @@
 # SwiftNIO Redis
 
-![Swift4](https://img.shields.io/badge/swift-4-blue.svg)
 ![Swift5](https://img.shields.io/badge/swift-5-blue.svg)
 ![macOS](https://img.shields.io/badge/os-macOS-green.svg?style=flat)
 ![tuxOS](https://img.shields.io/badge/os-tuxOS-green.svg?style=flat)

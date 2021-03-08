@@ -133,7 +133,7 @@ open class RESPChannelHandler : ChannelDuplexHandler {
     context.write(wrapOutboundOut(out), promise: promise)
   }
 
-  @inline(__always)
+  @inlinable
   final func encode<S: Collection>(simpleString bytes: S,
                                    out: inout ByteBuffer)
         where S.Element == UInt8
@@ -143,7 +143,7 @@ open class RESPChannelHandler : ChannelDuplexHandler {
     out.writeBytes(eol)
   }
   
-  @inline(__always)
+  @inlinable
   final func encode(simpleString bytes: ByteBuffer, out: inout ByteBuffer) {
     var s = bytes
     out.writeInteger(UInt8(43)) // +
@@ -151,7 +151,7 @@ open class RESPChannelHandler : ChannelDuplexHandler {
     out.writeBytes(eol)
   }
 
-  @inline(__always)
+  @inlinable
   final func encode(bulkString bytes: ByteBuffer?, out: inout ByteBuffer) {
     if var s = bytes {
       out.writeInteger(UInt8(36)) // $
@@ -165,7 +165,7 @@ open class RESPChannelHandler : ChannelDuplexHandler {
     }
   }
 
-  @inline(__always)
+  @inlinable
   final func encode<S: Collection>(bulkString bytes: S?,
                                    out: inout ByteBuffer)
          where S.Element == UInt8
@@ -182,14 +182,14 @@ open class RESPChannelHandler : ChannelDuplexHandler {
     }
   }
   
-  @inline(__always)
+  @inlinable
   final func encode(integer i: Int, out: inout ByteBuffer) {
     out.writeInteger(UInt8(58)) // :
     out.write(integerAsString : i)
     out.writeBytes(eol)
   }
   
-  @inline(__always)
+  @inlinable
   final func encode(error: RESPError, out: inout ByteBuffer) {
     out.writeInteger(UInt8(45)) // -
     out.writeString(error.code)
@@ -241,8 +241,10 @@ open class RESPChannelHandler : ChannelDuplexHandler {
   }
 }
 
-private let eol       : ContiguousArray<UInt8> = [ 13, 10 ] // \r\n
-private let nilString : ContiguousArray<UInt8> = [ 36, 45, 49, 13, 10 ] // $-1\r\n
+@usableFromInline
+let eol       : ContiguousArray<UInt8> = [ 13, 10 ] // \r\n
+@usableFromInline
+let nilString : ContiguousArray<UInt8> = [ 36, 45, 49, 13, 10 ] // $-1\r\n
 private let nilArray  : ContiguousArray<UInt8> = [ 42, 45, 49, 13, 10 ] // *-1\r\n
 
 fileprivate enum ConstantBuffers {
