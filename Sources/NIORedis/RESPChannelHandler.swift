@@ -56,6 +56,7 @@ open class RESPChannelHandler : ChannelDuplexHandler {
       try parser.feed(buffer) { respValue in
         self.channelRead(context: context, value: respValue)
       }
+      context.flush()
     }
     catch {
       context.fireErrorCaught(error)
